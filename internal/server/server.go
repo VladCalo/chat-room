@@ -2,8 +2,8 @@ package server
 
 import (
 	"bufio"
-	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"strings"
 )
@@ -13,28 +13,25 @@ func HandleClient(conn net.Conn) {
 
 	reader := bufio.NewReader(conn)
 
-	//reading loop for current conn
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
-				fmt.Println("[INFO] Client disconnected:", conn.RemoteAddr())
+				slog.Info("Client disconnected", "addr", conn.RemoteAddr())
 				return
 			}
-			fmt.Println("[ERROR] Read had error:", err)
+			slog.Error("Read error", "err", err)
 			return
 		}
-		line = strings.TrimSpace(line)
-		fmt.Printf("[INFO] From %v: %q\n", conn.RemoteAddr(), line)
+		slog.Info("Message received", "addr", conn.RemoteAddr(), "msg", strings.TrimSpace(line))
 
 		data := []byte(line)
 		totalWritten := 0
 
-		// write data back to client
 		for totalWritten < len(data) {
 			n, werr := conn.Write(data[totalWritten:])
 			if werr != nil {
-				fmt.Println("[ERROR] Writing error to", conn.RemoteAddr(), ":", werr)
+				slog.Error("Write error", "addr", conn.RemoteAddr(), "err", werr)
 				return
 			}
 			totalWritten += n
