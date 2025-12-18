@@ -6,9 +6,44 @@ import (
 	"log/slog"
 	"net"
 	"strings"
+	"os"
 )
 
-func HandleClient(conn net.Conn) {
+type Server struct {
+	addr string
+	logger *slog.Logger
+}
+
+func New(addr string, logger *slog.Logger) *Server {
+	return &Server{
+		addr: addr,
+		logger: logger,
+	}
+}
+
+func (s *Server) Run() {
+	listener, err := net.Listen("tcp", s.addr)
+	if err != nil {
+		slog.Error("Listen returned error", "err", err)
+		os.Exit(1)
+	}
+
+	defer listener.Close()
+
+	slog.Info("Listening", "addr", s.addr)
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			slog.Error("Accept error", "err", err)
+			continue
+		}
+		slog.Info("Client connected", "addr", conn.RemoteAddr())
+		go s.HandleClient(conn)
+	}
+}
+
+func (s *Server) HandleClient(conn net.Conn) {
 	defer conn.Close()
 
 	reader := bufio.NewReader(conn)
