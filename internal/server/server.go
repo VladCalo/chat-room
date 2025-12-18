@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 )
 
 type Server struct {
@@ -37,23 +38,33 @@ func (s *Server) Run(ctx context.Context) {
 
 	slog.Info("Listening", "addr", s.addr)
 
+	var wg sync.WaitGroup
+
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			if ctx.Err() != nil {
-				return
+				break
 			}
 			slog.Error("Accept error", "err", err)
 			continue
 		}
 		slog.Info("Client connected", "addr", conn.RemoteAddr())
-		go s.HandleClient(ctx, conn)
+
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+			s.HandleClient(ctx, conn)
+		}()
 	}
+	wg.Wait()
 }
 
 func (s *Server) HandleClient(ctx context.Context, conn net.Conn) {
 	go func() {
 		<-ctx.Done()
+		conn.Write([]byte("Server shutting down...Goodbye!"))
 		conn.Close()
 	}()
 
