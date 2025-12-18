@@ -11,13 +11,13 @@ import (
 )
 
 type Server struct {
-	addr string
+	addr   string
 	logger *slog.Logger
 }
 
 func New(addr string, logger *slog.Logger) *Server {
 	return &Server{
-		addr: addr,
+		addr:   addr,
 		logger: logger,
 	}
 }
@@ -47,12 +47,15 @@ func (s *Server) Run(ctx context.Context) {
 			continue
 		}
 		slog.Info("Client connected", "addr", conn.RemoteAddr())
-		go s.HandleClient(conn)
+		go s.HandleClient(ctx, conn)
 	}
 }
 
-func (s *Server) HandleClient(conn net.Conn) {
-	defer conn.Close()
+func (s *Server) HandleClient(ctx context.Context, conn net.Conn) {
+	go func() {
+		<-ctx.Done()
+		conn.Close()
+	}()
 
 	reader := bufio.NewReader(conn)
 
@@ -61,6 +64,10 @@ func (s *Server) HandleClient(conn net.Conn) {
 		if err != nil {
 			if err == io.EOF {
 				slog.Info("Client disconnected", "addr", conn.RemoteAddr())
+				return
+			}
+			if ctx.Err() != nil {
+				slog.Info("Client connection closed", "addr", conn.RemoteAddr())
 				return
 			}
 			slog.Error("Read error", "err", err)
