@@ -2,11 +2,12 @@ package server
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"log/slog"
 	"net"
-	"strings"
 	"os"
+	"strings"
 )
 
 type Server struct {
@@ -21,20 +22,27 @@ func New(addr string, logger *slog.Logger) *Server {
 	}
 }
 
-func (s *Server) Run() {
+func (s *Server) Run(ctx context.Context) {
 	listener, err := net.Listen("tcp", s.addr)
 	if err != nil {
 		slog.Error("Listen returned error", "err", err)
 		os.Exit(1)
 	}
 
-	defer listener.Close()
+	go func() {
+		<-ctx.Done()
+		slog.Info("Received context cancelation (Ctrl-C)")
+		listener.Close()
+	}()
 
 	slog.Info("Listening", "addr", s.addr)
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			slog.Error("Accept error", "err", err)
 			continue
 		}
