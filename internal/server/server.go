@@ -95,7 +95,7 @@ func (s *Server) HandleClient(ctx context.Context, client *Client) {
 		}
 		slog.Info("Message received", "addr", conn.RemoteAddr(), "msg", strings.TrimSpace(line))
 
-		s.broadcast(line)
+		s.broadcast(line, client)
 	}
 }
 
@@ -120,18 +120,20 @@ func (s *Server) removeClient(client *Client) {
 	delete(s.clients, client.client_id)
 }
 
-func (s *Server) broadcast(msg string) {
+func (s *Server) broadcast(msg string, client *Client) {
 	s.mu.Lock()
 	targets := make([]*Client, 0, len(s.clients))
-	for _, client := range s.clients {
-		targets = append(targets, client)
+	for _, c := range s.clients {
+		if c.client_id != client.client_id {
+			targets = append(targets, c)
+		}
 	}
 	s.mu.Unlock()
 
-	for _, client := range targets {
-		_, err := client.conn.Write([]byte(msg))
+	for _, c := range targets {
+		_, err := c.conn.Write([]byte(msg))
 		if err != nil {
-			slog.Error("Write error", "addr", client.addr, "err", err)
+			slog.Error("Write error", "addr", c.addr, "err", err)
 		}
 	}
 }
