@@ -8,7 +8,7 @@ import (
 	"os/signal"
 )
 
-// TODO: context propagation
+// TODO: broadcast
 const addr string = "127.0.0.1:9000"
 
 func main() {
@@ -16,6 +16,6 @@ func main() {
 	defer stop()
 	
 	logger := slog.Default()
-	srv := server.New(addr, logger)
+	srv := server.NewServer(addr, logger)
 	srv.Run(ctx)
 }
