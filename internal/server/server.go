@@ -14,12 +14,18 @@ import (
 type Server struct {
 	addr   string
 	logger *slog.Logger
+
+	mu sync.Mutex
+	clients map[int]*Client
+	nextID int
 }
 
-func New(addr string, logger *slog.Logger) *Server {
+func NewServer(addr string, logger *slog.Logger) *Server {
 	return &Server{
 		addr:   addr,
 		logger: logger,
+		clients: make(map[int]*Client),
+		nextID: 1,
 	}
 }
 
@@ -49,19 +55,20 @@ func (s *Server) Run(ctx context.Context) {
 			slog.Error("Accept error", "err", err)
 			continue
 		}
-		slog.Info("Client connected", "addr", conn.RemoteAddr())
+		client := s.addClient(conn)
 
 		wg.Add(1)
-
 		go func() {
 			defer wg.Done()
-			s.HandleClient(ctx, conn)
+			defer s.removeClient(client)
+			s.HandleClient(ctx, client)
 		}()
 	}
 	wg.Wait()
 }
 
-func (s *Server) HandleClient(ctx context.Context, conn net.Conn) {
+func (s *Server) HandleClient(ctx context.Context, client *Client) {
+	conn := client.conn
 	go func() {
 		<-ctx.Done()
 		conn.Write([]byte("Server shutting down...Goodbye!"))
@@ -74,7 +81,6 @@ func (s *Server) HandleClient(ctx context.Context, conn net.Conn) {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
-				slog.Info("Client disconnected", "addr", conn.RemoteAddr())
 				return
 			}
 			if ctx.Err() != nil {
@@ -98,4 +104,25 @@ func (s *Server) HandleClient(ctx context.Context, conn net.Conn) {
 			totalWritten += n
 		}
 	}
+}
+
+func (s *Server) addClient(conn net.Conn) *Client {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	id := s.nextID
+	s.nextID++
+	client := NewClient(id, conn)
+	s.clients[id] = client
+
+	slog.Info("Client connected", "id", client.client_id, "addr", client.addr)
+	return client
+}
+
+func (s *Server) removeClient(client *Client) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	slog.Info("Client disconnected", "id", client.client_id, "addr", client.addr)
+	delete(s.clients, client.client_id)
 }

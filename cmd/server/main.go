@@ -16,6 +16,6 @@ func main() {
 	defer stop()
 	
 	logger := slog.Default()
-	srv := server.New(addr, logger)
+	srv := server.NewServer(addr, logger)
 	srv.Run(ctx)
 }
