@@ -18,6 +18,8 @@ type Server struct {
 	mu      sync.Mutex
 	clients map[int]*Client
 	nextID  int
+
+	rooms map[string]*Room
 }
 
 func NewServer(addr string, logger *slog.Logger) *Server {
@@ -26,6 +28,7 @@ func NewServer(addr string, logger *slog.Logger) *Server {
 		logger:  logger,
 		clients: make(map[int]*Client),
 		nextID:  1,
+		rooms: make(map[string]*Room),
 	}
 }
 
