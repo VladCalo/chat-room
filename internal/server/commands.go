@@ -28,6 +28,11 @@ func (s *Server) handleCommand(client *Client, input string) {
 		}
 		s.exitRoom(client)
 	case "/list":
+		if len(parts) != 1 {
+			s.sendToClient(client, "Usage: /list\n")
+			return
+		}
+		s.listRooms(client)
 	case "/whereAmI":
 		if len(parts) != 1 {
 			s.sendToClient(client, "Usage: /whereAmI\n")
@@ -98,6 +103,24 @@ func (s *Server) exitRoom(client *Client) {
 
 	client.room = nil
 	s.sendToClient(client, fmt.Sprintf("Left room: %s\n", room.name))
+}
+
+func (s *Server) listRooms(client *Client) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if len((s.rooms)) == 0 {
+		s.sendToClient(client, "Rooms: None\n")
+		return
+	}
+
+	var sb strings.Builder
+	sb.WriteString("Rooms:\n")
+
+	for roomName := range s.rooms {
+		sb.WriteString("  " + roomName + "\n")
+	}
+	s.sendToClient(client, sb.String())
 }
 
 func (s *Server) whereAmI(client *Client) {
