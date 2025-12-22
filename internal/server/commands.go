@@ -13,7 +13,6 @@ func (s *Server) handleCommand(client *Client, input string) {
 
 	switch parts[0] {
 	case "/join":
-	case "/send":
 	case "/exit":
 	case "/list":
 	case "/help":
@@ -28,7 +27,6 @@ func (s *Server) showHelp(client *Client) {
 ####################################################
 #  Commands:                                       #
 #    /join <room>  - Join a room                   #
-#    /send <msg>   - Send message to current room  #
 #    /exit         - Leave current room            #
 #    /list         - List all rooms                #
 #    /help         - Show this help                #
