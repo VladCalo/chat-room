@@ -3,6 +3,7 @@ package server
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -28,7 +29,7 @@ func NewServer(addr string, logger *slog.Logger) *Server {
 		logger:  logger,
 		clients: make(map[int]*Client),
 		nextID:  1,
-		rooms: make(map[string]*Room),
+		rooms:   make(map[string]*Room),
 	}
 }
 
@@ -58,20 +59,19 @@ func (s *Server) Run(ctx context.Context) {
 			slog.Error("Accept error", "err", err)
 			continue
 		}
-		client := s.addClient(conn)
+		//client := s.addClient(conn)
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			defer s.removeClient(client)
-			s.HandleClient(ctx, client)
+			//defer s.removeClient(client)
+			s.HandleClient(ctx, conn)
 		}()
 	}
 	wg.Wait()
 }
 
-func (s *Server) HandleClient(ctx context.Context, client *Client) {
-	conn := client.conn
+func (s *Server) HandleClient(ctx context.Context, conn net.Conn) {
 
 	defer conn.Close()
 
@@ -83,8 +83,22 @@ func (s *Server) HandleClient(ctx context.Context, client *Client) {
 
 	reader := bufio.NewReader(conn)
 
+	conn.Write([]byte("Enter your name: "))
+	name, err := reader.ReadString('\n')
+	if err != nil {
+		slog.Error("Error reading client name", "err", err)
+		return
+	}
+
+	client := s.addClient(conn, strings.TrimSpace(name))
+	defer s.removeClient(client)
+
+	conn.Write([]byte(fmt.Sprintf("Welcome %s!\n", client.name)))
+	s.showHelp(client)
+
 	for {
 		line, err := reader.ReadString('\n')
+		s.handleCommand(client, line)
 		if err != nil {
 			if err == io.EOF {
 				return
@@ -102,13 +116,13 @@ func (s *Server) HandleClient(ctx context.Context, client *Client) {
 	}
 }
 
-func (s *Server) addClient(conn net.Conn) *Client {
+func (s *Server) addClient(conn net.Conn, name string) *Client {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	id := s.nextID
 	s.nextID++
-	client := NewClient(id, conn)
+	client := NewClient(id, name, conn)
 	s.clients[id] = client
 
 	slog.Info("Client connected", "id", client.client_id, "addr", client.addr)
