@@ -21,7 +21,8 @@ func (s *Server) handleCommand(client *Client, input string) {
 		s.joinRoom(parts[1], client)
 	case "/exit":
 	case "/list":
-	case "/?":
+	case "/whereAmI":
+		s.whereAmI(client)
 	case "/help":
 		s.showHelp(client)
 	default:
@@ -36,7 +37,7 @@ func (s *Server) showHelp(client *Client) {
 #    /join <room>  - Join a room                      #
 #    /exit         - Leave current room               #
 #    /list         - List all rooms                   #
-#    /?            - Tells you which room you are in  #
+#    /whereAmI     - Tells you which room you are in  #
 #    /help         - Show this help                   #
 #######################################################
 `
@@ -73,4 +74,10 @@ func (s *Server) joinRoom(roomName string, client *Client) {
 
 //func (s *Server) exitRoom(client)
 
-//func (s *Server) whereAmI(client *Client)
+func (s *Server) whereAmI(client *Client) {
+	if client.room == nil {
+		s.sendToClient(client, "You are in the lobby...Please join a room to send messages!\n")
+		return
+	}
+	s.sendToClient(client, fmt.Sprintf("You are in room: %s\n", client.room.name))
+}
