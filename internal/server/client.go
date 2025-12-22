@@ -15,6 +15,7 @@ type Client struct {
 	name string
 	conn net.Conn
 	addr net.Addr
+	room *Room
 }
 
 func NewClient(id int, name string, conn net.Conn) *Client {
