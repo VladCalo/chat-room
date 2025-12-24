@@ -14,3 +14,14 @@ func NewRoom(name string) *Room {
 		members: make(map[int]*Client),
 	}
 }
+
+func (r *Room) broadcast(sender *Client, msg string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, client := range r.members {
+		if client.client_id != sender.client_id {
+			client.conn.Write([]byte(msg))
+		}
+	}
+}

@@ -1,13 +1,13 @@
 package server
 
 import (
-	"net"
-	"log/slog"
-	"strings"
 	"bufio"
-	"fmt"
 	"context"
+	"fmt"
 	"io"
+	"log/slog"
+	"net"
+	"strings"
 )
 
 type Client struct {
@@ -42,10 +42,18 @@ func (s *Server) addClient(conn net.Conn, name string) *Client {
 
 func (s *Server) removeClient(client *Client) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	delete(s.clients, client.client_id)
+	s.mu.Unlock()
+
+	if client.room != nil {
+		room := client.room
+		room.mu.Lock()
+		delete(room.members, client.client_id)
+		room.mu.Unlock()
+	}
 
 	slog.Info("Client disconnected", "id", client.client_id, "addr", client.addr)
-	delete(s.clients, client.client_id)
+
 }
 
 func (s *Server) HandleClient(ctx context.Context, conn net.Conn) {
@@ -75,7 +83,7 @@ func (s *Server) HandleClient(ctx context.Context, conn net.Conn) {
 
 	for {
 		line, err := reader.ReadString('\n')
-		s.handleCommand(client, line)
+
 		if err != nil {
 			if err == io.EOF {
 				return
@@ -89,6 +97,21 @@ func (s *Server) HandleClient(ctx context.Context, conn net.Conn) {
 		}
 		slog.Info("Message received", "addr", conn.RemoteAddr(), "msg", strings.TrimSpace(line))
 
-		s.broadcast(line, client)
+		line = strings.TrimSpace(line)
+
+		if line == "" {
+			continue
+		}
+
+		if strings.HasPrefix(line, "/") {
+			s.handleCommand(client, line)
+		} else {
+			if client.room == nil {
+				s.sendToClient(client, "Join a room first: /join <room>\n")
+			} else {
+				msg := fmt.Sprintf("[%s]: %s\n", client.name, line)
+				client.room.broadcast(client, msg)
+			}
+		}
 	}
 }

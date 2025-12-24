@@ -71,6 +71,11 @@ func (s *Server) joinRoom(roomName string, client *Client) {
 		return
 	}
 
+	//exit current room if trying to connect to another room already being in a room
+	if client.room != nil {
+		s.exitRoom(client)
+	}
+
 	s.mu.Lock()
 	room, exists := s.rooms[roomName]
 
@@ -107,10 +112,9 @@ func (s *Server) exitRoom(client *Client) {
 
 func (s *Server) listRooms(client *Client) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if len((s.rooms)) == 0 {
-		s.sendToClient(client, "Rooms: None\n")
+	if len(s.rooms) == 0 {
+		s.mu.Unlock()
+		s.sendToClient(client, "Rooms: None. Joining a room will automatically create one!\n")
 		return
 	}
 
@@ -120,7 +124,10 @@ func (s *Server) listRooms(client *Client) {
 	for roomName := range s.rooms {
 		sb.WriteString("  " + roomName + "\n")
 	}
-	s.sendToClient(client, sb.String())
+	output := sb.String()
+	s.mu.Unlock()
+
+	s.sendToClient(client, output)
 }
 
 func (s *Server) whereAmI(client *Client) {

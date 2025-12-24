@@ -63,21 +63,3 @@ func (s *Server) Run(ctx context.Context) {
 	}
 	wg.Wait()
 }
-
-func (s *Server) broadcast(msg string, client *Client) {
-	s.mu.Lock()
-	targets := make([]*Client, 0, len(s.clients))
-	for _, c := range s.clients {
-		if c.client_id != client.client_id {
-			targets = append(targets, c)
-		}
-	}
-	s.mu.Unlock()
-
-	for _, c := range targets {
-		_, err := c.conn.Write([]byte(msg))
-		if err != nil {
-			slog.Error("Write error", "addr", c.addr, "err", err)
-		}
-	}
-}
