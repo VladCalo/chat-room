@@ -8,7 +8,7 @@ import (
 	"os/signal"
 )
 
-// TODO: broadcast
+// TODO: broadcast per room
 const addr string = "127.0.0.1:9000"
 
 func main() {
