@@ -71,6 +71,11 @@ func (s *Server) joinRoom(roomName string, client *Client) {
 		return
 	}
 
+	//exit current room if trying to connect to another room already being in a room
+	if client.room != nil {
+		s.exitRoom(client)
+	}
+
 	s.mu.Lock()
 	room, exists := s.rooms[roomName]
 

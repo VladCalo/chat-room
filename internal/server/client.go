@@ -42,10 +42,18 @@ func (s *Server) addClient(conn net.Conn, name string) *Client {
 
 func (s *Server) removeClient(client *Client) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	delete(s.clients, client.client_id)
+	s.mu.Unlock()
+
+	if client.room != nil {
+		room := client.room
+		room.mu.Lock()
+		delete(room.members, client.client_id)
+		room.mu.Unlock()
+	}
 
 	slog.Info("Client disconnected", "id", client.client_id, "addr", client.addr)
-	delete(s.clients, client.client_id)
+
 }
 
 func (s *Server) HandleClient(ctx context.Context, conn net.Conn) {
