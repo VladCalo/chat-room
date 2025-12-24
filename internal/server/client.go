@@ -1,13 +1,13 @@
 package server
 
 import (
-	"net"
-	"log/slog"
-	"strings"
 	"bufio"
-	"fmt"
 	"context"
+	"fmt"
 	"io"
+	"log/slog"
+	"net"
+	"strings"
 )
 
 type Client struct {
@@ -83,7 +83,7 @@ func (s *Server) HandleClient(ctx context.Context, conn net.Conn) {
 
 	for {
 		line, err := reader.ReadString('\n')
-		s.handleCommand(client, line)
+
 		if err != nil {
 			if err == io.EOF {
 				return
@@ -97,6 +97,21 @@ func (s *Server) HandleClient(ctx context.Context, conn net.Conn) {
 		}
 		slog.Info("Message received", "addr", conn.RemoteAddr(), "msg", strings.TrimSpace(line))
 
-		s.broadcast(line, client)
+		line = strings.TrimSpace(line)
+
+		if line == "" {
+			continue
+		}
+
+		if strings.HasPrefix(line, "/") {
+			s.handleCommand(client, line)
+		} else {
+			if client.room == nil {
+				s.sendToClient(client, "Join a room first: /join <room>\n")
+			} else {
+				msg := fmt.Sprintf("[%s]: %s\n", client.name, line)
+				client.room.broadcast(client, msg)
+			}
+		}
 	}
 }
