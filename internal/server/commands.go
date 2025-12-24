@@ -28,11 +28,13 @@ func (s *Server) handleCommand(client *Client, input string) {
 		}
 		s.exitRoom(client)
 	case "/list":
-		if len(parts) != 1 {
-			s.sendToClient(client, "Usage: /list\n")
-			return
+		if len(parts) == 1 {
+			s.listRooms(client)
+		} else if len(parts) == 2 {
+			s.listRoomMembers(client, parts[1])
+		} else {
+			s.sendToClient(client, "Usage: /list or /list <room>\n")
 		}
-		s.listRooms(client)
 	case "/whereAmI":
 		if len(parts) != 1 {
 			s.sendToClient(client, "Usage: /whereAmI\n")
@@ -53,6 +55,7 @@ func (s *Server) showHelp(client *Client) {
 #    /join <room>  - Join a room                      #
 #    /exit         - Leave current room               #
 #    /list         - List all rooms                   #
+#    /list <room>  - List people in specified room     #
 #    /whereAmI     - Tells you which room you are in  #
 #    /help         - Show this help                   #
 #    Control-C     - Disconnect                       #
@@ -126,6 +129,29 @@ func (s *Server) listRooms(client *Client) {
 	}
 	output := sb.String()
 	s.mu.Unlock()
+
+	s.sendToClient(client, output)
+}
+
+func (s *Server) listRoomMembers(client *Client, roomName string) {
+	s.mu.Lock()
+	room, exists := s.rooms[roomName]
+	s.mu.Unlock()
+
+	if !exists {
+		s.sendToClient(client, fmt.Sprintf("Room '%s' does not exist\n", roomName))
+		return
+	}
+
+	room.mu.Lock()
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Room %s:\n", room.name))
+
+	for _, c := range room.members {
+		sb.WriteString(fmt.Sprintf("  - %s\n", c.name))
+	}
+	output := sb.String()
+	room.mu.Unlock()
 
 	s.sendToClient(client, output)
 }
